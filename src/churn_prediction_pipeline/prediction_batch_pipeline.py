@@ -14,6 +14,17 @@ from churn_prediction_pipeline.preprocessing_pipeline import preprocessing_pipel
 from churn_prediction_pipeline.predict_churn import predict_churn
 import os
 
+
+
+
+logging.basicConfig(
+    filename=config.LOGGING_FILENAME,
+    filemode=config.LOGGING_FILEMODE,
+    level=getattr(logging, config.LOGGING_LEVEL),  # Convert string level to logging constant
+    format=config.LOGGING_FORMAT
+)
+logger = logging.getLogger(__name__)
+
 rf_model=data_handling.load_churn_model()
 
 
@@ -51,11 +62,13 @@ def filter_and_convert_to_churn_pred(row):
         if 'tenure' in row:
             row['tenure'] = int(round(float(row['tenure']))) if row['tenure'].strip() else None
         churn_pred =churn_pred_data.dict_to_pydantic(row)
-        print("Row to Predict", churn_pred)
+        logger.debug("Row after filtering: %s",churn_pred)
         return churn_pred
         
     except (ValueError, ValidationError) as e:
-        print(f"Validation error: {e} for {customerId}")
+        logger.debug("Validation error: %s for",e,customerId)
+        
+    #    print(f"Validation error: {e} for {customerId}")
         # Return None to filter out invalid rows
         return None
 
@@ -201,5 +214,5 @@ def run(argv =None):
        
 
 if __name__ == "__main__" :
-    logging.getLogger().setLevel(logging.INFO)
+  
     run()
