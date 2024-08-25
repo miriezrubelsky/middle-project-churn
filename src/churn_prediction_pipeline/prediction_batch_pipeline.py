@@ -4,7 +4,6 @@ import argparse
 import pandas as pd
 from typing import Optional
 from enum import Enum
-from pydantic import ValidationError
 from churn_prediction_pipeline.config import config
 from churn_prediction_pipeline.data import churn_pred_data
 from churn_prediction_pipeline.processing import data_handling
@@ -12,11 +11,8 @@ from sklearn.pipeline import Pipeline
 from churn_prediction_pipeline.processing import preprocessing as pp 
 from churn_prediction_pipeline.preprocessing_pipeline import preprocessing_pipeline
 from churn_prediction_pipeline.predict_churn import predict_churn
+from churn_prediction_pipeline.filter_churn import filter_churn
 import os
-
-
-
-
 logging.basicConfig(
     filename=config.LOGGING_FILENAME,
     filemode=config.LOGGING_FILEMODE,
@@ -52,25 +48,6 @@ class RemoveHeaderFn(beam.DoFn):
 
 def is_file_empty(count):
      return count > 0
-
-def filter_and_convert_to_churn_pred(row):
-    customerId = row['customerID']
-    try:
-        # Convert string values to appropriate types before passing to Pydantic model
-        if 'TotalCharges' in row:
-            row['TotalCharges'] = float(row['TotalCharges']) if row['TotalCharges'].strip() else None
-        if 'tenure' in row:
-            row['tenure'] = int(round(float(row['tenure']))) if row['tenure'].strip() else None
-        churn_pred =churn_pred_data.dict_to_pydantic(row)
-        logger.debug("Row after filtering: %s",churn_pred)
-        return churn_pred
-        
-    except (ValueError, ValidationError) as e:
-        logger.debug("Validation error: %s for",e,customerId)
-        
-    #    print(f"Validation error: {e} for {customerId}")
-        # Return None to filter out invalid rows
-        return None
 
 
 def extract_tenure(row):
@@ -110,20 +87,8 @@ class ExtractHeader(beam.DoFn):
             self.header_extracted = True
             yield element
 
-def format_output_row(internal_churn_pred_data):
-    if isinstance(internal_churn_pred_data, internal_churn_pred_data):
-        return ','.join(
-            [getattr(internal_churn_pred_data,'customerID'), 
-            str(getattr(internal_churn_pred_data,'tenure')),
-            str(getattr(internal_churn_pred_data,'PhoneService')),
-            getattr(internal_churn_pred_data,'Contract'),
-            str(getattr(internal_churn_pred_data,'TotalCharges')),
-            str(getattr(internal_churn_pred_data,'prediction'))]
-         )
-    else:
-        raise TypeError(f"Expected a internalChurnPred but got {type(internalChurnPred).__name__}: {internalChurnPred}") 
-  
-def format_output_row_new(output_churn_pred_data):
+ 
+def format_output_row(output_churn_pred_data):
     formatted_fields = []
     for col in config.output_columns:
         # Get the value of the attribute
@@ -185,7 +150,7 @@ def run(argv =None):
         
         valid_rows = (
             parsed_rows
-            | "Filter and Convert to ChurnPred" >> beam.Map(filter_and_convert_to_churn_pred)
+            | "Filter and Convert to ChurnPred" >> beam.ParDo(filter_churn())
             | "Filter Out None Values" >> beam.Filter(lambda result: result is not None)
         )
      
@@ -199,7 +164,7 @@ def run(argv =None):
         formatted_data_pcoll = (
                    processed_data
                    | "Filter None Values" >> beam.Filter(lambda row: row is not None)
-                   | "Format Output" >> beam.Map(format_output_row_new)
+                   | "Format Output" >> beam.Map(format_output_row)
         )
         _ = (
               formatted_data_pcoll

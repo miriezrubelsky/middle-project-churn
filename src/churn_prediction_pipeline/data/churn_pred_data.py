@@ -17,7 +17,7 @@ class churn_pred_data(BaseModel):
     customerID: str
     TotalCharges: Optional[float] = None
     Contract: ContractEnum
-    PhoneService: Optional[PhoneServiceEnum]= None
+    PhoneService: PhoneServiceEnum
     tenure: Optional[int] = None
 
 # Function to convert Pydantic model to dictionary

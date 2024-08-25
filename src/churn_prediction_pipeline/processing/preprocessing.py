@@ -90,9 +90,16 @@ class OneHotEncodeContract(BaseEstimator, TransformerMixin):
     
     def transform(self, X):
         X = X.copy()
+        if hasattr(X['Contract'].iloc[0], 'value'):
+            X['Contract'] = X['Contract'].apply(lambda x: x.value)
+        else:
+            X['Contract'] = X['Contract'].astype(str)
         # One-hot encode the 'Contract' field
         dummies = pd.get_dummies(X['Contract'], prefix='Contract').astype(int)
-
+        print("Unique values in 'Contract':\n", X['Contract'].unique())
+    
+        # Print the column names of dummies DataFrame
+        print("Column names in dummies:\n", dummies.columns)
         # Ensure all contract types are present
         for contract_type in self.contract_types:
             if f'Contract_{contract_type}' not in dummies.columns:
