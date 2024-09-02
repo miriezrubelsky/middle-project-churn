@@ -4,7 +4,7 @@ import churn_prediction_pipeline
 
 PACKAGE_ROOT = pathlib.Path(churn_prediction_pipeline.__file__).resolve().parent
 
-DATAPATH = os.path.join(PACKAGE_ROOT,"datasets")
+#DATAPATH = os.path.join(PACKAGE_ROOT,"datasets")
 
 MODEL_NAME = 'churn_model.pickle'
 SAVE_MODEL_PATH = os.path.join(PACKAGE_ROOT,'trained_model')
